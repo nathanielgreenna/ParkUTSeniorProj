@@ -1,8 +1,11 @@
+// Nathaniel Green for ParkUT Senior Design Project.
+// Uses a sample from The Flutter team under an unrestricted license. Original header below.
 // Copyright 2019 The Flutter team. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// found in the LICENSE file in the samples home folder.
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -19,6 +22,7 @@ const initialPosition = LatLng(41.658183, -83.615252);
 const _greenHue = 120.0;
 const _yellowHue = 30.0;
 const _redHue = 0.0;
+const _blueHue = 240.0;
 // Places API client used for Place Photos
 final _placesApiClient = GoogleMapsPlaces(apiKey: googleMapsApiKey);
 
@@ -36,8 +40,9 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ice Creams FTW',
+      title: 'ParkUT',
       home: const HomePage(title: 'ParkUT'),
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
@@ -72,9 +77,10 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
+      //appBar: AppBar(
+      //  title: Text(widget.title),
+      //),
+
       body: StreamBuilder<QuerySnapshot>(
         stream: _iceCreamStores,
         builder: (context, snapshot) {
@@ -85,16 +91,63 @@ class _HomePageState extends State<HomePage> {
             return const Center(child: Text('Loading...'));
           }
 
+          var predictions = <String, String>{};
+          for (var item in snapshot.data!.docs) {
+            var now = DateTime.now();
+            now = now.subtract(Duration(minutes: now.minute % 15));
+            var futureTime = now.add(const Duration(hours: 1));
+            var g0 =
+                '${now.weekday - 1} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00';
+            var g1 =
+                '${futureTime.weekday - 1} ${futureTime.hour.toString().padLeft(2, '0')}:${futureTime.minute.toString().padLeft(2, '0')}:00';
+            var currHour = item[g0] as List<dynamic>;
+            var occHour = item[g1] as List<dynamic>;
+            var r0 = currHour.indexOf(-1);
+            var r1 = occHour.indexOf(-1);
+            var hourPred = 0.0;
+            var diff = 0.0;
+            var predict = "";
+            if (r1 == 0) {
+              predict = "N/A";
+            } else {
+              if (r1 == -1) {
+                r1 = currHour.length;
+              }
+              for (var i = 0; i < r1; i++) {
+                hourPred += occHour.elementAt(i) as int;
+              }
+              hourPred = hourPred / r1 / (item['capacity'] as int) * 100;
+              if (r0 != 0) {
+                if (r0 == -1) {
+                  r0 = currHour.length;
+                }
+                for (var i = 0; i < r0; i++) {
+                  diff += currHour.elementAt(i) as int;
+                }
+                diff = ((item['spotsfilled'] as int) * 1.0) - (diff / r0);
+                diff = diff / (item['capacity'] as int) * 100;
+              }
+              hourPred += diff;
+              hourPred = max(hourPred, 0);
+              hourPred = min(hourPred, 100);
+              predict = "${hourPred.toStringAsFixed(0)}%";
+            }
+
+            predictions[item.id] = predict;
+          }
+
           return Stack(
             children: [
               StoreMap(
                 documents: snapshot.data!.docs,
                 initialPosition: initialPosition,
                 mapController: _mapController,
+                predDict: predictions,
               ),
               StoreCarousel(
                 mapController: _mapController,
                 documents: snapshot.data!.docs,
+                predDict: predictions,
               ),
             ],
           );
@@ -109,22 +162,25 @@ class StoreCarousel extends StatelessWidget {
     super.key,
     required this.documents,
     required this.mapController,
+    required this.predDict,
   });
 
   final List<DocumentSnapshot> documents;
   final Completer<GoogleMapController> mapController;
+  final Map<String, String> predDict;
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.topLeft,
       child: Padding(
-        padding: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.only(top: 25),
         child: SizedBox(
           height: 90,
           child: StoreCarouselList(
             documents: documents,
             mapController: mapController,
+            predDict: predDict,
           ),
         ),
       ),
@@ -137,8 +193,10 @@ class StoreCarouselList extends StatelessWidget {
     super.key,
     required this.documents,
     required this.mapController,
+    required this.predDict,
   });
 
+  final Map<String, String> predDict;
   final List<DocumentSnapshot> documents;
   final Completer<GoogleMapController> mapController;
 
@@ -157,6 +215,7 @@ class StoreCarouselList extends StatelessWidget {
                 child: StoreListTile(
                   document: documents[index],
                   mapController: mapController,
+                  predDict: predDict,
                 ),
               ),
             ),
@@ -172,10 +231,12 @@ class StoreListTile extends StatefulWidget {
     super.key,
     required this.document,
     required this.mapController,
+    required this.predDict,
   });
 
   final DocumentSnapshot document;
   final Completer<GoogleMapController> mapController;
+  final Map<String, String> predDict;
 
   @override
   State<StatefulWidget> createState() {
@@ -205,8 +266,9 @@ class _StoreListTileState extends State<StoreListTile> {
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(widget.document['name'] as String),
-      subtitle: Text(
-          '${((widget.document['spotsfilled'] / widget.document['capacity']) * 100).toStringAsFixed(0)}% Full | ${widget.document['capacity']} Total'),
+      subtitle: Text((widget.document['closed'] as bool)
+          ? '${widget.document['permits']}\nClosed'
+          : '${widget.document['permits']}\n${((widget.document['spotsfilled'] / widget.document['capacity']) * 100).toStringAsFixed(0)}% Full\n${widget.predDict[widget.document.id]} in 1 hour'),
       onTap: () async {
         final controller = await widget.mapController.future;
         await controller.animateCamera(
@@ -231,11 +293,13 @@ class StoreMap extends StatelessWidget {
     required this.documents,
     required this.initialPosition,
     required this.mapController,
+    required this.predDict,
   });
 
   final List<DocumentSnapshot> documents;
   final LatLng initialPosition;
   final Completer<GoogleMapController> mapController;
+  final Map<String, String> predDict;
 
   @override
   Widget build(BuildContext context) {
@@ -247,8 +311,10 @@ class StoreMap extends StatelessWidget {
       markers: documents
           .map((document) => Marker(
                 markerId: MarkerId(document.id),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                    (((document['spotsfilled'] / document['capacity'])
+                icon: BitmapDescriptor.defaultMarkerWithHue((document['closed']
+                        as bool)
+                    ? _blueHue
+                    : ((((document['spotsfilled'] / document['capacity'])
                                 as double) >=
                             0.85)
                         ? _redHue
@@ -256,15 +322,16 @@ class StoreMap extends StatelessWidget {
                                     as double) >=
                                 0.50)
                             ? _yellowHue
-                            : _greenHue)),
+                            : _greenHue))),
                 position: LatLng(
                   document['coords'].latitude as double,
                   document['coords'].longitude as double,
                 ),
                 infoWindow: InfoWindow(
                   title: document['name'] as String?,
-                  snippet:
-                      '${((document['spotsfilled'] / document['capacity']) * 100).toStringAsFixed(0)}% occupied',
+                  snippet: (document['closed'] as bool)
+                      ? '${document['permits']} | Closed'
+                      : '${document['permits']} | ${((document['spotsfilled'] / document['capacity']) * 100).toStringAsFixed(0)}% occupied | ${predDict[document.id]} in 1 hour',
                 ),
               ))
           .toSet(),
