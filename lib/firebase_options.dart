@@ -46,30 +46,9 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyD_nk-I7GpxU-RlbGNrqhb1m2txTi8Lf48',
-    appId: '1:730643591781:web:5969c3f704264a8a5b4c8c',
-    messagingSenderId: '730643591781',
-    projectId: 'senior-design-362600',
-    authDomain: 'senior-design-362600.firebaseapp.com',
-    storageBucket: 'senior-design-362600.appspot.com',
-  );
+  static const FirebaseOptions web = FirebaseOptions();
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDZbJ0NAVmiWe64KaU1NsnjoheXaAbNGvw',
-    appId: '1:730643591781:android:89f06387678b351c5b4c8c',
-    messagingSenderId: '730643591781',
-    projectId: 'senior-design-362600',
-    storageBucket: 'senior-design-362600.appspot.com',
-  );
+  static const FirebaseOptions android = FirebaseOptions();
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDK1bOHjH4BR6TW7W2NJNXk8PoC412haYk',
-    appId: '1:730643591781:ios:e126fcde0aaf9dcd5b4c8c',
-    messagingSenderId: '730643591781',
-    projectId: 'senior-design-362600',
-    storageBucket: 'senior-design-362600.appspot.com',
-    iosClientId: '730643591781-21snhbtppet011otss3hf0dhch76rhih.apps.googleusercontent.com',
-    iosBundleId: 'com.example.flutterMapsFirestore',
-  );
+  static const FirebaseOptions ios = FirebaseOptions();
 }
