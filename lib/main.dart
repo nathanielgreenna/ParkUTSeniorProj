@@ -1,4 +1,4 @@
-// Nathaniel Green for ParkUT Senior Design Project.
+// Nathaniel Green for ParkUT Senior Design Project at UToledo.
 // Uses a sample from The Flutter team under an unrestricted license. Original header below.
 // Copyright 2019 The Flutter team. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
